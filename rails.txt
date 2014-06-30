@@ -1,0 +1,211 @@
+[HOST]
+$ vagrant init
+$ vim Vagrantfile
+    - AWS設定
+    -- インスタンス名変更
+$ vagrant up --provider=aws
+$ vim .env
+$ vagrant ssh
+
+[GUEST]
+# -----------
+# etc install
+#  - yum list installed
+# -----------
+$ sudo yum -y update
+$ sudo yum install -y gcc 
+$ sudo yum install -y gcc-c++ 
+$ sudo yum install -y git
+$ sudo yum install -y mysql-server mysql-devel
+$ sudo yum install -y openssl-devel
+$ sudo yum install -y ruby-devel
+$ sudo yum install -y sqlite-devel
+$ sudo yum install -y curl-devel
+# patch readline readline-devel zlib zlib-devel libyaml-devel libffi-devel make bzip2 iconv-devel 
+
+# ---------------
+# mysql install
+#  - sudo tail -f /var/log/mysqld.log # debug用
+#  -! /etc/my.cnf編集いる?
+# ---------------
+$ sudo mysql_install_db
+$ sudo chown -R mysql:mysql /var/lib/mysql
+$ sudo service mysqld start
+$ sudo chkconfig mysqld on
+
+# --------------
+# rbenv install
+# --------------
+$ cd ~
+$ git clone git://github.com/sstephenson/rbenv.git .rbenv
+$ echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bash_profile
+$ echo 'eval "$(rbenv init -)"' >> ~/.bash_profile
+$ exec $SHELL -l
+
+# -------------------
+# ruby-build install
+# -------------------
+$ git clone git://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build
+
+# ------------
+# ruby install
+# ------------
+$ rbenv install 2.0.0-p353
+$ rbenv global 2.0.0-p353
+$ rbenv rehash
+
+# ---------------
+# install bundler
+#  - rbenv exec gem which bundler
+#  - rbenv exec gem list
+# ---------------
+$ rbenv exec gem install bundler
+$ rbenv rehash
+
+# ----------------------------
+# railsローカルインストール作成
+# ----------------------------
+$ cat << EOS > Gemfile
+source "http://rubygems.org"
+gem "rails", "4.1.0"
+EOS
+$ bundle install --path vendor/bundle
+$ bundle list # インストールしたgemを確認
+$ bundle exec rails new app_name  --skip-bundle --skip-test-unit -d mysql
+$ rm -f Gemfile
+$ rm -f Gemfile.lock
+$ rm -rf .bundle
+$ rm -rf vendor/bundle
+
+# -----------------------------
+# プロジェクト環境セットアップ
+#   - $ echo '/vendor/bundle' >> .gitignore
+# -----------------------------
+$ cd app_name
+$ vim Gemfile
+  - therubyracerのコメントアウトを外す
+$ bundle install --path vendor/bundle
+
+# ----------------------------------------
+# secret key base(config/secrets.yml)作成
+$ ruby -e 'require "securerandom"; print SecureRandom.hex(64)' > ~/.rails_secret_key_base
+$ export SECRET_KEY_BASE=`cat ~/.rails_secret_key_base`
+
+# ----------------------------------------
+# db create
+$ vim config/database.yml
+  - username, password変更
+$ bin/rake db:create RAILS_ENV=production
+
+# ----------------------------------------
+# アセットプリコンパイル
+$ bin/rake assets:precompile
+$ vim config/environments/production.rb
+  - nginx等設定しない場合、config.serve_static_assets = trueにする
+
+$ bin/rails s -e production
+  - ポート3000が開いてなければあける
+
+# ---------------
+# nginx install
+# ---------------
+$ sudo yum -y install nginx
+$ cd /etc/nginx
+$ sudo mkdir sites-available
+$ sudo mkdir sites-enabled
+$ sudo rm -f conf.d/*.conf 
+$ sudo vim /etc/nginx/nginx.conf
+  include /etc/nginx/sites-enabled/*; # 下から２行目に追加
+$ sudo service nginx start
+
+# ---------------
+# Unicorn install
+# ---------------
+$ cd ~/rails_root
+$ vim Gemfile
+  - gem 'unicorn'
+$ bundle install --path vendor/bundle
+$ vim config/unicorn.rb
+  - 新規作成 
+$ 起動スクリプトの作成(もしくは下記)
+  - bundle exec unicorn_rails -c config/unicorn.rb -D -E production
+# ----------
+# バーチャルホストの設定
+$ sudo vim /etc/nginx/sites-available/default
+$ sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+$ sudo vim /etc/nginx/sites-available/myapp
+$ sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+$ sudo service nginx restart
+
+# ---------------
+# apache install
+# ---------------
+$ sudo yum -y install httpd-devel
+$ sudo chkconfig httpd on
+$ sudo su -
+$ cd /etc/httpd
+$ echo "Include /etc/httpd/sites-enabled/" >> conf/httpd.conf
+$ mkdir sites-available
+$ mkdir sites-enabled
+$ rm conf.d/welcome.conf
+$ exit
+
+$ sudo vim /etc/httpd/conf/httpd.conf
+  - 下記のコメントアウトをとる
+  - #ServerName www.example.com:80
+  - #NameVirtualHost *:80
+
+# -----------
+# create swap
+# -----------
+$ sudo dd if=/dev/zero of=/swap bs=1M count=1024
+$ sudo mkswap /swap
+$ sudo swapon /swap
+
+# --------------------------
+# Phusion Passenger install
+# --------------------------
+$ vim Gemfile
+  - gem "passenger" 
+$ bundle install --path vendor/bundle
+$ sudo chmod o+x "/home/ec2-user"
+$ bundle exec passenger-install-apache2-module
+$ sudo vim /etc/httpd/conf.d/passenger.conf
+   LoadModule passenger_module /home/ec2-user/myapp/vendor/bundle/ruby/2.0.0/gems/passenger-4.0.45/buildout/apache2/mod_passenger.so
+   <IfModule mod_passenger.c>
+     PassengerRoot /home/ec2-user/myapp/vendor/bundle/ruby/2.0.0/gems/passenger-4.0.45
+     PassengerDefaultRuby /home/ec2-user/.rbenv/versions/2.0.0-p353/bin/ruby
+   </IfModule>
+# ----------
+# バーチャルホストの設定
+$ sudo vim /etc/httpd/sites-available/default
+  <VirtualHost *:80>
+    DocumentRoot /var/www/html
+    <Directory /var/www/html>
+      AllowOverride all
+      Options None
+      Order Deny,Allow
+      Deny from All
+    </Directory>
+  </VirtualHost>
+$ sudo ln -s /etc/httpd/sites-available/default /etc/httpd/sites-enabled/000-default
+$ sudo vim /etc/httpd/sites-available/myapp
+  <VirtualHost *:80>
+    ServerName xxx.xxx.xxx.xxx
+    DocumentRoot /home/ec2-user/myapp/public
+    RackEnv production
+    <Directory /home/ec2-user/myapp/public>
+      AllowOverride all
+      Options -MultiViews
+    </Directory>
+  </VirtualHost>
+$ sudo ln -s /etc/httpd/sites-available/myapp /etc/httpd/sites-enabled/001-myapp
+$ sudo gpasswd -a apache ec2-user
+$ sudo chmod g+rx "/home/ec2-user" # 必要か謎
+$ sudo service httpd start
+
+# --------
+# 参考文献
+# --------
+ - http://qiita.com/emadurandal/items/a60886152a4c99ce1017
+ - http://kanjuku-tomato.blogspot.jp/2013/02/centos-63railsnginxrailsunicornpostgres.html
