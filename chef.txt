@@ -1,0 +1,46 @@
+# -------------
+# wordpressの例
+# -------------
+
+# -----------------------------
+# Vagrantファイル作成
+# -----------------------------
+$ vagrant init
+$ vagrant up --provider=aws
+
+# -----------------------------
+# host名でsshアクセス可能にする
+# -----------------------------
+$ vagrant ssh-config --host wordpress >> ~/.ssh/config
+
+# -----------------------------
+# knife-soloインストール
+# -----------------------------
+$ bundle init
+$ vim Gemfile
+  - gem 'knife-solo'
+$ bundle install --path vendor/bundle
+
+# --------------
+# レポジトリ作成
+# --------------
+$ bundle exec knife solo init chef-repo
+
+# ----------------
+# クックブック作成
+# ----------------
+$ bundle exec knife cookbook create base -o site-cookbooks
+$ cd chef-repo
+$ vim site-cookbooks/base/recipes/default.rb
+
+# ------------------------------
+# guestにchef-soloをインストール
+# ------------------------------
+$ bundle exec knife solo prepare wordpress
+
+# --------------
+# chef solo 実行
+# --------------
+$ vim nodes/wordpress.json
+$ bundle exec knife solo cook wordpress
+

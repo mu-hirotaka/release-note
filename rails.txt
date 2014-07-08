@@ -8,6 +8,11 @@ $ vim .env
 $ vagrant ssh
 
 [GUEST]
+# --------------
+# 日本時間に設定
+# --------------
+$ sudo cp /usr/share/zoneinfo/Japan /etc/localtime
+
 # -----------
 # etc install
 #  - yum list installed
@@ -21,6 +26,7 @@ $ sudo yum install -y openssl-devel
 $ sudo yum install -y ruby-devel
 $ sudo yum install -y sqlite-devel
 $ sudo yum install -y curl-devel
+# sudo yum -y install gcc gcc-c++ git mysql-server mysql-devel openssl-devel ruby-devel sqlite-devel curl-devel
 # patch readline readline-devel zlib zlib-devel libyaml-devel libffi-devel make bzip2 iconv-devel 
 
 # ---------------
@@ -116,6 +122,7 @@ $ sudo mkdir sites-enabled
 $ sudo rm -f conf.d/*.conf 
 $ sudo vim /etc/nginx/nginx.conf
   include /etc/nginx/sites-enabled/*; # 下から２行目に追加
+  user ディレクティブをec2-userにする
 $ sudo service nginx start
 
 # ---------------
@@ -128,7 +135,7 @@ $ bundle install --path vendor/bundle
 $ vim config/unicorn.rb
   - 新規作成 
 $ 起動スクリプトの作成(もしくは下記)
-  - bundle exec unicorn_rails -c config/unicorn.rb -D -E production
+  - bin/bundle exec unicorn_rails -c config/unicorn.rb -D -E production
 # ----------
 # バーチャルホストの設定
 $ sudo vim /etc/nginx/sites-available/default
