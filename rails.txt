@@ -136,6 +136,7 @@ $ vim config/unicorn.rb
   - 新規作成 
 $ 起動スクリプトの作成(もしくは下記)
   - bin/bundle exec unicorn_rails -c config/unicorn.rb -D -E production
+  - 再起動はこちら(kill -USR2 `cat /home/ec2-user/overawe/tmp/pids/unicorn.pid`)
 # ----------
 # バーチャルホストの設定
 $ sudo vim /etc/nginx/sites-available/default
