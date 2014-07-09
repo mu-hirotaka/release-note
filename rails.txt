@@ -102,6 +102,7 @@ $ export SECRET_KEY_BASE=`cat ~/.rails_secret_key_base`
 $ vim config/database.yml
   - username, password変更
 $ bin/rake db:create RAILS_ENV=production
+$ bin/rake db:seed RAILS_ENV=production
 
 # ----------------------------------------
 # アセットプリコンパイル
