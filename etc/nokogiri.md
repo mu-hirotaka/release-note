@@ -1,5 +1,6 @@
 # bundle install した時 nokogiri が "libiconv is missing."でインストールできなかった時
 
+## Macの場合
 ```
 # homebrew公式に libiconv が無いので libiconv formula を追加
 brew tap homebrew/dupes
@@ -15,3 +16,8 @@ bundle config build.nokogiri --use-system-libraries
 bundle install
 ```
 
+## CentOSの場合
+```
+sudo yum -y install libxml2-devel
+sudo yum -y install libxslt-devel
+```
